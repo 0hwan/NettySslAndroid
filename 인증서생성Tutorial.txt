@@ -1,0 +1,62 @@
+Android 용 PKCS12 타입의 Keystore 생성 및 사설인증서 생성
+
+#1 키파일 생성(2048 bit)
+openssl genrsa 2048 -out key.pem
+
+#2 CSR 생성
+openssl req -new -key key.pem > csr.pem
+You are about to be asked to enter information that will be incorporated
+into your certificate request.
+What you are about to enter is what is called a Distinguished Name or a DN.
+There are quite a few fields but you can leave some blank
+For some fields there will be a default value,
+If you enter '.', the field will be left blank.
+-----
+Country Name (2 letter code) [AU]:KR
+State or Province Name (full name) [Some-State]:Seoul
+Locality Name (eg, city) []:Seoul
+Organization Name (eg, company) [Internet Widgits Pty Ltd]:TestInc
+Organizational Unit Name (eg, section) []:Development
+Common Name (e.g. server FQDN or YOUR name) []:goodman
+Email Address []:xxxx@email.com
+
+Please enter the following 'extra' attributes
+to be sent with your certificate request
+A challenge password []:
+An optional company name []:
+
+#3 인증서 생성
+openssl req -key key.pem -x509 -nodes -sha1 -days 365 -in csr.pem -out crt.pem
+
+#4 Android 에서 사용 할 PKCS12 타입의 Keystore 생성
+#4-1 키파일과 인증서를 Mgerge 한다.
+cat key.pem crt.pem > goodman.pem
+
+#4-2 KeyStore 생성
+openssl pkcs12 -export -in goodman.pem -out goodman_pkcs12.p12 -name goodman
+Enter Export Password:   <==  "KeyStore 접근 패스워드 입력"
+Verifying - Enter Export Password:
+
+
+#Example
+String passphrase = "goodman";
+InputStream is = mContext.getResources().openRawResource(R.raw.whoopee_pkcs12);
+KeyStore keystore = KeyStore.getInstance("PKCS12");
+keystore.load(is, passphrase.toCharArray());
+
+keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+keyManagerFactory.init(keystore, passphrase.toCharArray());:q!:
+
+
+
+
+SSLContext ctx = SSLContext.getInstance("TLSv1");
+ctx.init(keyManagerFactory.getKeyManagers(), null, null);
+
+sslEngine = ctx.createSSLEngine();
+sslEngine.setUseClientMode(false);
+
+
+
+#SSL TEST
+openssl s_client -host xxx.xxx.xxx.xxx -port 9000 -state
